@@ -4,46 +4,58 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
-
-# %%
-# read train and test data
-train_data = pd.read_csv('../data/train_2v.csv')
-train_data = train_data.drop(['id'], axis=1)
-
-test_data = pd.read_csv('../data/test_2v.csv')
-test_data = test_data.drop(['id'], axis=1)
-
-# %%
-# do some data analysis before training and testing data
-stroke_data = train_data[train_data['stroke'] == 1]
-unstroke_data = train_data[train_data['stroke'] == 0]
-
-# %%
-# gender vs stroke
-genderChart(stroke_data, unstroke_data)
-# age vs stroke
-ageChart(stroke_data, unstroke_data)
-# hypertension vs age
-hypertensionChart(stroke_data, unstroke_data)
-# heart_disease vs stroke
-heartDiseaseChart(stroke_data, unstroke_data)
-# ever_married vs stroke
-marriageChart(stroke_data, unstroke_data)
-# work_type vs stroke
-workTypeChart(stroke_data, unstroke_data)
-# residence_type vs stroke
-residecTypeChart(stroke_data, unstroke_data)
-# agv_glucose vs stroke
-agvGlucoseChart(stroke_data, unstroke_data)
-# bmi vs stroke
-bmiChart(stroke_data, unstroke_data)
-# smoking_status vs stroke
-smokingStatusChart(stroke_data, unstroke_data)
+from sklearn.model_selection import train_test_split
+from keras.models import Sequential
+from keras.layers import Dense, Activation
 
 # %%
 
 
-def genderChart(stroke_data, unstroke_data):
+def preprocessData():
+    # read train and test data
+    data = pd.read_csv('../data/train_2v.csv')
+    test_data = pd.read_csv('../data/test_2v.csv')
+
+    # replace missing bmi data with median value
+    train_median = data['bmi'].median()
+    data['bmi'].fillna(train_median, inplace=True)
+
+    test_median = test_data['bmi'].median()
+    test_data['bmi'].fillna(test_median, inplace=True)
+
+    # drop first column id
+    data = data.drop(['id'], axis=1)
+    test_data = test_data.drop(['id'], axis=1)
+
+    return data, test_data
+
+
+def plotCharts(data):
+    stroke_data = data[data['stroke'] == 1]
+
+    # gender vs stroke
+    genderChart(stroke_data)
+    # age vs stroke
+    ageChart(stroke_data)
+    # hypertension vs age
+    hypertensionChart(stroke_data)
+    # heart_disease vs stroke
+    heartDiseaseChart(stroke_data)
+    # ever_married vs stroke
+    marriageChart(stroke_data)
+    # work_type vs stroke
+    workTypeChart(stroke_data)
+    # residence_type vs stroke
+    residecTypeChart(stroke_data)
+    # agv_glucose vs stroke
+    agvGlucoseChart(stroke_data)
+    # bmi vs stroke
+    bmiChart(stroke_data)
+    # smoking_status vs stroke
+    smokingStatusChart(stroke_data)
+
+
+def genderChart(stroke_data):
     count_female_stroke = len(stroke_data[stroke_data['gender'] == '0'])
     count_male_stroke = len(stroke_data[stroke_data['gender'] == '1'])
 
@@ -66,21 +78,22 @@ def genderChart(stroke_data, unstroke_data):
     generateChart(names, values, colors, title, figure_name)
 
 
-def ageChart(stroke_data, unstroke_data):
+def ageChart(stroke_data):
     count_age_stroke_map = {}
-    for i in range(10):
+    for i in range(3, 9):
         min_age = i*10
-        max_age = (i+1)*10
+        max_age = (i+1)*10-1
         key = str(min_age) + '~' + str(max_age)
         count_age_stroke_map[key] = len(
-            stroke_data[(stroke_data['age'] >= min_age) & (stroke_data['age'] < max_age)])
+            stroke_data[(stroke_data['age'] >= min_age) & (stroke_data['age'] <= max_age)])
+    count_age_stroke_map['0~29'] = len(
+        stroke_data[(stroke_data['age'] >= 0) & (stroke_data['age'] <= 29)])
 
     # generate data
     names = []
     values = []
     colors = []
     a = plt.cm.Blues
-    group_colors = []
     weight = 0.1
     for i in sorted(count_age_stroke_map.keys()):
         names.append(i)
@@ -95,7 +108,7 @@ def ageChart(stroke_data, unstroke_data):
     generateChart(names, values, colors, title, figure_name)
 
 
-def hypertensionChart(stroke_data, unstroke_data):
+def hypertensionChart(stroke_data):
     count_hypertension_stroke = len(
         stroke_data[stroke_data['hypertension'] == 1])
     count_unhypertension_stroke = len(
@@ -120,7 +133,7 @@ def hypertensionChart(stroke_data, unstroke_data):
     generateChart(names, values, colors, title, figure_name)
 
 
-def heartDiseaseChart(stroke_data, unstroke_data):
+def heartDiseaseChart(stroke_data):
     count_heart_disease_stroke = len(
         stroke_data[stroke_data['heart_disease'] == 1])
     count_not_heart_disease_stroke = len(
@@ -145,7 +158,7 @@ def heartDiseaseChart(stroke_data, unstroke_data):
     generateChart(names, values, colors, title, figure_name)
 
 
-def marriageChart(stroke_data, unstroke_data):
+def marriageChart(stroke_data):
     count_married_stroke = len(stroke_data[stroke_data['ever_married'] == 1])
     count_unmarried_stroke = len(stroke_data[stroke_data['ever_married'] == 0])
 
@@ -168,7 +181,7 @@ def marriageChart(stroke_data, unstroke_data):
     generateChart(names, values, colors, title, figure_name)
 
 
-def workTypeChart(stroke_data, unstroke_data):
+def workTypeChart(stroke_data):
     count_children_stroke = len(
         stroke_data[stroke_data['work_type'] == 'children'])
     count_govt_job_stroke = len(
@@ -200,7 +213,7 @@ def workTypeChart(stroke_data, unstroke_data):
     generateChart(names, values, colors, title, figure_name)
 
 
-def residecTypeChart(stroke_data, unstroke_data):
+def residecTypeChart(stroke_data):
     count_rural_stroke = len(
         stroke_data[stroke_data['residence_type'] == 'rural'])
     count_urban_stroke = len(
@@ -225,9 +238,9 @@ def residecTypeChart(stroke_data, unstroke_data):
     generateChart(names, values, colors, title, figure_name)
 
 
-def agvGlucoseChart(stroke_data, unstroke_data):
+def agvGlucoseChart(stroke_data):
     count_glucose_level_stroke_map = {}
-    for i in range(2, 12):
+    for i in range(2, 11):
         min_glucose_level = i*25
         max_glucose_level = (i+1)*25
         key = str(min_glucose_level) + '~' + str(max_glucose_level)
@@ -239,9 +252,8 @@ def agvGlucoseChart(stroke_data, unstroke_data):
     values = []
     colors = []
     a = plt.cm.Blues
-    group_colors = []
     weight = 0.1
-    for i in range(2, 12):
+    for i in range(2, 11):
         min_glucose_level = i*25
         max_glucose_level = (i+1)*25
         key = str(min_glucose_level) + '~' + str(max_glucose_level)
@@ -252,14 +264,14 @@ def agvGlucoseChart(stroke_data, unstroke_data):
         weight += 0.1
 
     figure_name = 'avg_glucose_level_stroke'
-    title = 'Avg Glucose Level vs Stroke'
+    title = 'Avg Glucose Level(Measured after meal) vs Stroke'
 
     generateChart(names, values, colors, title, figure_name)
 
 
-def bmiChart(stroke_data, unstroke_data):
+def bmiChart(stroke_data):
     count_bmi_stroke_map = {}
-    for i in range(1, 10):
+    for i in range(1, 6):
         min_bmi = i*10
         max_bmi = (i+1)*10
         key = str(min_bmi) + '~' + str(max_bmi)
@@ -271,9 +283,8 @@ def bmiChart(stroke_data, unstroke_data):
     values = []
     colors = []
     a = plt.cm.Blues
-    group_colors = []
     weight = 0.1
-    for i in range(1, 10):
+    for i in range(1, 6):
         min_bmi = i*10
         max_bmi = (i+1)*10
         key = str(min_bmi) + '~' + str(max_bmi)
@@ -289,7 +300,7 @@ def bmiChart(stroke_data, unstroke_data):
     generateChart(names, values, colors, title, figure_name)
 
 
-def smokingStatusChart(stroke_data, unstroke_data):
+def smokingStatusChart(stroke_data):
     count_smokes_stroke = len(
         stroke_data[stroke_data['smoking_status'] == 'smokes'])
     count_formerly_smoked_stroke = len(
@@ -318,24 +329,120 @@ def smokingStatusChart(stroke_data, unstroke_data):
     generateChart(names, values, colors, title, figure_name)
 
 
-# %%
 # generate and save pie chart
 def generateChart(names, values, colors, title, figure_name):
-    x = np.char.array(names)
-    y = np.array(values)
-    porcent = 100.*y/y.sum()
-    labels = ['{0} - {1:1.2f} %'.format(i, j) for i, j in zip(x, porcent)]
+    group_names = np.char.array(names)
+    group_values = np.array(values)
+    porcent = 100.*group_values/group_values.sum()
+    legend_labels = [
+        '{0} - {1:1.2f} %'.format(i, j) for i, j in zip(group_names, porcent)]
     # First Ring (outside)
     fig, ax = plt.subplots()
     ax.axis('equal')
-    mypie, _ = ax.pie(values, radius=1.2, colors=colors)
-    plt.legend(mypie, labels, loc='left center', bbox_to_anchor=(-0.1, 1.),
-               fontsize=10)
+    mypie, _ = ax.pie(group_values, radius=1.2, colors=colors)
+    plt.legend(mypie, legend_labels, loc='lower left', bbox_to_anchor=(
+        1, 0), fontsize=10, bbox_transform=plt.gcf().transFigure)
     plt.setp(mypie, width=0.4, edgecolor='white')
 
-    ax.set_title(title)
+    bbox_props = dict(boxstyle="square,pad=0.3", fc="w", ec="k", lw=0.72)
+    kw = dict(xycoords='data', textcoords='data', arrowprops=dict(
+        arrowstyle="-"), zorder=0, va="center")
+
+    for i, p in enumerate(mypie):
+        ang = (p.theta2 - p.theta1)/2. + p.theta1
+        y = np.sin(np.deg2rad(ang))
+        x = np.cos(np.deg2rad(ang))
+        horizontalalignment = {-1: "right", 1: "left"}[int(np.sign(x))]
+        connectionstyle = "angle,angleA=0,angleB={}".format(ang)
+        kw["arrowprops"].update(
+            {"connectionstyle": connectionstyle, "color": colors[i]})
+        ax.annotate(group_names[i], xy=(x, y), xytext=(1.35*np.sign(x), 1.4*y),
+                    horizontalalignment=horizontalalignment, **kw)
+
+    ax.set_title(title, y=1.08)
     # save figure
     fig.savefig(os.path.join('../figures', figure_name), bbox_inches='tight')
 
+# %%
+
+
+def convertDataset(data, test_data):
+    # drop
+
+    # work_type
+    work_type_map = {
+        'children': 0,
+        'govt_job': 1,
+        'private': 2,
+        'self-employed': 3
+    }
+    data['work_type'] = data['work_type'].map(work_type_map)
+    test_data['work_type'] = test_data['work_type'].map(work_type_map)
+
+    # residence_type
+    residence_type_map = {
+        'rural': 0,
+        'urban': 1
+    }
+    data['residence_type'] = data['residence_type'].map(
+        residence_type_map)
+    test_data['residence_type'] = test_data['residence_type'].map(
+        residence_type_map)
+
+    # smoking_status
+    smoking_status_map = {
+        'never smoked': 0,
+        'formerly smoked': 1,
+        'smokes': 2
+    }
+    data['smoking_status'] = data['smoking_status'].map(
+        smoking_status_map)
+    test_data['smoking_status'] = test_data['smoking_status'].map(
+        smoking_status_map)
+    data['smoking_status'].fillna(3, inplace=True)
+    test_data['smoking_status'].fillna(3, inplace=True)
+
+    return data, test_data
+
+
+# Execution Part
+# %%
+# Read data and pre-processing data
+data, test_data = preprocessData()
+
+# Perform some data analysis on the raw dataset
+# plotCharts(data)
+
+# Data training
+# Convert string data to numerical values
+data, test_data = convertDataset(data, test_data)
+
+# %%
+# x,y values for dataset
+y = data['stroke']
+X = data.drop(['stroke'], axis=1)
+
+export_csv = data.to_csv('../figures/data.csv', header=True)
+
+# split dataset to train dataset & test dataset
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.33, random_state=42)
+
+# %%
+# Construct model
+model = Sequential()
+
+model.add(Dense(4, activation='relu',
+                kernel_initializer='random_normal', input_dim=10))
+
+model.add(Dense(1, activation='sigmoid', kernel_initializer='random_normal'))
+
+model.summary()
+# %%
+model.compile(optimizer='adam',
+              loss='binary_crossentropy',
+              metrics=['accuracy'])
+
+model.fit(X_train, y_train, batch_size=10, epochs=100)
 
 # %%
