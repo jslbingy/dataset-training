@@ -4,9 +4,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
+import keras
 from sklearn.model_selection import train_test_split
 from keras.models import Sequential
 from keras.layers import Dense, Activation
+from sklearn.linear_model import LogisticRegression
 
 # %%
 
@@ -367,7 +369,15 @@ def generateChart(names, values, colors, title, figure_name):
 
 
 def convertDataset(data, test_data):
-    # drop
+    # drop rows where gender is 'Others'
+    data_index = data[data['gender'] == 'Other'].index
+    data.drop(data_index, inplace=True)
+    test_index = test_data[test_data['gender'] == 'Other'].index
+    test_data.drop(test_index, inplace=True)
+
+    # drop rows with NaN values
+    data = data.dropna()
+    test_data = test_data.dropna()
 
     # work_type
     work_type_map = {
@@ -399,8 +409,8 @@ def convertDataset(data, test_data):
         smoking_status_map)
     test_data['smoking_status'] = test_data['smoking_status'].map(
         smoking_status_map)
-    data['smoking_status'].fillna(3, inplace=True)
-    test_data['smoking_status'].fillna(3, inplace=True)
+
+    save_csv = data.to_csv('../figures/data.csv', header=True)
 
     return data, test_data
 
@@ -422,27 +432,50 @@ data, test_data = convertDataset(data, test_data)
 y = data['stroke']
 X = data.drop(['stroke'], axis=1)
 
-export_csv = data.to_csv('../figures/data.csv', header=True)
-
 # split dataset to train dataset & test dataset
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.33, random_state=42)
+
+save_csv = X_train.to_csv('../figures/data.csv', header=True)
+
+data_array = np.array(data.values, dtype=np.float64)
+input_array = data_array[:, 0:10]
+output_array = data_array[:, 10]
+print(input_array[0])
+print(output_array[0])
 
 # %%
 # Construct model
 model = Sequential()
 
-model.add(Dense(4, activation='relu',
-                kernel_initializer='random_normal', input_dim=10))
-
-model.add(Dense(1, activation='sigmoid', kernel_initializer='random_normal'))
+model.add(Dense(50, input_dim=10, activation='relu'))
+model.add(Dense(20, activation='relu'))
+model.add(Dense(1, activation='softmax'))
 
 model.summary()
 # %%
-model.compile(optimizer='adam',
-              loss='binary_crossentropy',
-              metrics=['accuracy'])
+model.compile(loss='binary_crossentropy',
+              optimizer='adam', metrics=['accuracy'])
 
-model.fit(X_train, y_train, batch_size=10, epochs=100)
+history = model.fit(input_array, output_array,
+                    validation_split=0.33, epochs=10, batch_size=16)
+
+# %%
+# Logistic Regression
+logreg = LogisticRegression()
+# Train the model using the training sets and check score
+logreg.fit(X_train, y_train)
+# Predict Output
+log_predicted = logreg.predict(X_test)
+
+logreg_score = round(logreg.score(X_train, y_train) * 100, 2)
+logreg_score_test = round(logreg.score(X_test, y_test) * 100, 2)
+# Equation coefficient and Intercept
+print('Logistic Regression Training Score: \n', logreg_score)
+print('Logistic Regression Test Score: \n', logreg_score_test)
+print('Coefficient: \n', logreg.coef_)
+print('Intercept: \n', logreg.intercept_)
+print('Accuracy: \n', accuracy_score(y_test, log_predicted))
+print('Confusion Matrix: \n', confusion_matrix(y_test, log_predicted))
 
 # %%
